@@ -4,6 +4,16 @@
 import os
 import sys
 
+def author_get(git_hash):
+    cmd = 'git show -s --format="%an" {}'.format(git_hash)
+    rawlines = os.popen(cmd).readlines()
+    if not rawlines:
+        author = ""
+    else:
+        author = rawlines[0]
+        author = author[0:-1].strip()
+    return author
+
 def branch_list_get():
     cmd = 'git branch --list --no-color -v'
     rawlines = os.popen(cmd).readlines()
@@ -18,18 +28,43 @@ def branch_list_get():
         index = rest.find(" ")
         name = rest[0:index]
         descr = rest[index:-1].strip()
-        branch[i] = {'active': active, 'name':name, 'descr':descr}
+        index = descr.find(" ")
+        git_hash = descr[0:index]
+        author = author_get(git_hash)
+        branch[i] = {'active': active, 'name':name, 'author':author, 'descr':descr}
         i += 1
 
     return branch
 
+COLOR_RESET="\033[0;0m"
+
 def show_branches():
     branch = branch_list_get()
     for ibranch in branch:
-        if branch[ibranch]['active']:
-            print("[{:>2}] {:<30} [{:>2}] {}".format(ibranch, branch[ibranch]['name'], ibranch, branch[ibranch]['descr']))
+        br = branch[ibranch]
+        if br['active']:
+            select_l = '['
+            select_r = ']'
+            color = "\033[100m"
         else:
-            print(" {:>2}  {:<30}  {:>2}  {}".format(ibranch, branch[ibranch]['name'], ibranch, branch[ibranch]['descr']))
+            select_l = ' '
+            select_r = ' '
+            color = ""
+        print("{}{}{:>2}{} {:<42} | {:<16} {}{:>2}{} | {}{}".
+            format(
+                color,
+                select_l,
+                ibranch,
+                select_r,
+                br['name'],
+                br['author'],
+                select_l,
+                ibranch,
+                select_r,
+                br['descr'],
+                COLOR_RESET
+            )
+        )
 
 def branch_delete(ibranch, mode):
     branch = branch_list_get()
@@ -42,6 +77,11 @@ def branch_delete(ibranch, mode):
         print(cmd)
         os.system(cmd)
 
+ERR_UNKNOWN_MODE = 1
+ERR_INVALID_MODE = 2
+ERR_BRANCH_INDEX_NOT_SPECIFIED = 3
+ERR_INVALID_BRANCH_INDEX = 4
+
 def main():
     mode2 = sys.argv[0]
     if(mode2[-11:] == "git-wrap.py"):
@@ -53,22 +93,24 @@ def main():
         elif(mode2[-12:] == "git-checkout"):
             mode = "checkout"
             branch_index = 1
+        elif(mode2[-10:] == "git-rebase"):
+            mode = "rebase"
+            branch_index = 1
         else:
-            print("Unknown exec")
-            return 1
+            print("Unknown exec {}".format(mode2))
+            return ERR_UNKNOWN_MODE
 
     if(mode == "branch"):
         if(len(sys.argv) < 2):
             print("Availiable branches:")
             show_branches()
-            return 3
+            return ERR_BRANCH_INDEX_NOT_SPECIFIED
 
         try:
             ibranch = int(sys.argv[branch_index])
         except:
             print("Invalid branch index")
-            return 4
-
+            return ERR_INVALID_BRANCH_INDEX
 
         if(sys.argv[branch_index - 1] == "-d"):
             return branch_delete(ibranch, '-d')
@@ -76,34 +118,59 @@ def main():
             return branch_delete(ibranch, '-D')
         else:
             print("Invalid command")
-            return 3
+            return ERR_INVALID_MODE
+
     elif(mode == "checkout"):
         if(len(sys.argv) < branch_index + 1):
             print("Branch index not specified")
             print("Availiable branches:")
             show_branches()
-            return 3
+            return ERR_BRANCH_INDEX_NOT_SPECIFIED
         branch = branch_list_get()
         invalid_index = False
         try:
             ibranch = int(sys.argv[branch_index])
         except:
             invalid_index = True
+
         if(invalid_index or not(ibranch in branch)):
             print("No such branch index")
-            return 4
-        else:
-            print("{} [{}] {}".format(mode, ibranch, branch[ibranch]['name'], branch[ibranch]['descr']))
-            cmd = 'git checkout "{}"'.format(branch[ibranch]['name'])
-            print(cmd)
-            os.system(cmd)
+            return ERR_INVALID_BRANCH_INDEX
+
+        print("{} [{}] {}".format(mode, ibranch, branch[ibranch]['name'], branch[ibranch]['descr']))
+        cmd = 'git checkout "{}"'.format(branch[ibranch]['name'])
+        print(cmd)
+        os.system(cmd)
+
+    elif(mode == "rebase"):
+        if(len(sys.argv) < branch_index + 1):
+            print("Branch index not specified")
+            print("Availiable branches:")
+            show_branches()
+            return ERR_BRANCH_INDEX_NOT_SPECIFIED
+
+        branch = branch_list_get()
+        invalid_index = False
+
+        try:
+            ibranch = int(sys.argv[branch_index])
+        except:
+            invalid_index = True
+
+        if(invalid_index or not(ibranch in branch)):
+            print("No such branch index")
+            return ERR_INVALID_BRANCH_INDEX
+
+        print("{} [{}] {}".format(mode, ibranch, branch[ibranch]['name'], branch[ibranch]['descr']))
+        cmd = 'git rebase "{}"'.format(branch[ibranch]['name'])
+        print(cmd)
+        os.system(cmd)
+
     else:
         print("invalid argument: ", mode)
-        return 2
+        return ERR_INVALID_MODE
+
     return 0
-
-
-
 
 if __name__ == "__main__":
     sys.exit(main())
