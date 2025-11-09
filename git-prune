@@ -1,0 +1,16 @@
+#!/bin/sh
+
+
+echo "git remote prune origin ..."
+git remote prune origin
+
+echo "git reflog expire --all --expire-unreachable=now"
+git reflog expire --all --expire-unreachable=now
+
+echo "git fetch --tags --prune-tags ..."
+git fetch --tags --prune-tags
+
+echo "git gc  --prune=now"
+git gc  --prune=now
+
+echo "End!"

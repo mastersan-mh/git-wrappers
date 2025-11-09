@@ -1,0 +1,14 @@
+#!/bin/sh
+
+git_add_by()
+{
+    PATTERN=$1
+    git add $(git status -s|grep "${PATTERN}"|sed "s/${PATTERN}//g")
+}
+
+git_add_by '^ M '
+git_add_by '^MM '
+git_add_by '^AM '
+git_add_by '^UU '
+
+git status

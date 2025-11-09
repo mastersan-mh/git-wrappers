@@ -1,0 +1,7 @@
+#!/bin/sh
+
+git log --pretty=format:"%H # %<(20)%an | %s"
+
+#git log --pretty=oneline
+
+#git log|grep -v "^Author"|grep -v "^Date"|grep -v "^$"
